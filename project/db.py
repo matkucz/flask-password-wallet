@@ -17,7 +17,7 @@ def create_tables(app):
     Function creating tables in database.
     '''
     # import inside because of ImportError
-    from project.models import Password, User
+    from project.models import Password, User, UserLogin, IpLogin
     # tables imported but unsued, there is no need to
     # use them in code
     db.create_all(app=app)

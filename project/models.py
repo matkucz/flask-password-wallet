@@ -6,6 +6,9 @@ class User(db.Model):
     password_hash = db.Column(db.String(512))
     salt = db.Column(db.String(20), nullable=False)
     is_password_kept_as_hash = db.Column(db.Boolean, nullable=False)
+    subseq_incorr_trials = db.Column(db.Integer, nullable=False)
+    blocked = db.Column(db.Boolean, nullable=False)
+    blocked_to = db.Column(db.DateTime)
 
 
 class Password(db.Model):
@@ -25,5 +28,8 @@ class UserLogin(db.Model):
     result = db.Column(db.Boolean, nullable=False)
 
 
-class Login(db.Model):
+class IpLogin(db.Model):
     id = db.Column(db.Integer, primary_key = True)
+    ip = db.Column(db.String(32), nullable=False)
+    subseq_incorr_trials = db.Column(db.Integer, nullable=False)
+    blocked = db.Column(db.Boolean, nullable=False)

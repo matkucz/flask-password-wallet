@@ -4,7 +4,7 @@ from flask import request
 from flask_jwt_extended import jwt_required, current_user
 from marshmallow import ValidationError
 from project.db import db
-from project.models import Password
+from project.models import Password, IpLogin
 from project.cipher import (
     decrypt,
     encrypt,
@@ -195,3 +195,23 @@ class EncryptPassword(Resource):
         return {
             "data": decrypted_password.decode("utf-8")
         }
+
+
+class RemoveIpBlockade(Resource):
+    @jwt_required()
+    def post(self):
+        request_json = request.get_json()
+        ip_address = request_json["ip_address"]
+        ip_login = IpLogin.query.filter_by(ip=ip_address).one_or_none()
+        try:
+            ip_login.blocked = False
+            ip_login.subseq_incorr_trials = 0
+        except AttributeError as atrr_error:
+            return {
+                "message": "No such IP address"
+            }, 401
+        db.session.add(ip_login)
+        db.session.commit()
+        return {
+            "message": "IP address blockade removed"
+        }, 401
