@@ -4,7 +4,7 @@ from flask import request
 from flask_jwt_extended import jwt_required, current_user
 from marshmallow import ValidationError
 from project.db import db
-from project.models import Password, IpLogin
+from project.models import Password, IpLogin, User
 from project.cipher import (
     decrypt,
     encrypt,
@@ -19,7 +19,8 @@ from project.hash import (
 from project.schemas import (
     CheckPasswordSchema,
     ChangePasswordSchema,
-    PasswordSchema, 
+    PasswordSchema,
+    SharePasswordShema
 )
 
 class Passwords(Resource):
@@ -35,7 +36,8 @@ class Passwords(Resource):
             "user_id": password.user_id, 
             "web_address": password.web_address, 
             "description": password.description, 
-            "login": password.login, 
+            "login": password.login,
+            "is_owner": password.owner_id == current_user.id,            
 
         } for password in passwords]
         return {
@@ -75,7 +77,8 @@ class Passwords(Resource):
             password=encrypted,
             web_address=web_address,
             description=description,
-            login=login
+            login=login,
+            owner_id=current_user.id
         )
         # save data to database
         db.session.add(new_password)
@@ -86,7 +89,7 @@ class Passwords(Resource):
 
 class CheckPassword(Resource):
     @jwt_required()
-    def get(self):
+    def post(self):
         request_json = request.get_json()
         schema = CheckPasswordSchema()
         # can use schema.validate()
@@ -178,23 +181,28 @@ class ChangePassword(Resource):
 
 class EncryptPassword(Resource):
     @jwt_required()
-    def get(self, row_number):
+    def get(self, password_id):
         # get all passwords for user from database
-        passwords = Password.query.filter_by(
-            user_id=current_user.id
-        ).all()
-        if not 0 <= row_number < len(passwords):
+        password = Password.query.filter_by(
+            id=password_id
+        ).one_or_none()
+        try:
+            encrypted_password = password.password
+            password_hash = current_user.password_hash
+            if password.owner_id != current_user.id:
+                pepper = str(getenv("HASH_PEPPER"))
+                salt = str(getenv("SHARING_SALT"))
+                password_hash = calculate_sha512(salt + pepper)
+            key = generate_key(password_hash)
+            # decrypt password
+            decrypted_password = decrypt(encrypted_password, key)
             return {
-                "message": "Invalid row number."
+                "data": decrypted_password.decode("utf-8")
             }
-        # get password with given row number (from web page)
-        encrypted_password = passwords[row_number].password
-        key = generate_key(current_user.password_hash)
-        # decrypt password
-        decrypted_password = decrypt(encrypted_password, key)
-        return {
-            "data": decrypted_password.decode("utf-8")
-        }
+        except AttributeError as error:
+            return {
+                "message": "Password doesn't exists."
+            }            
 
 
 class RemoveIpBlockade(Resource):
@@ -215,3 +223,60 @@ class RemoveIpBlockade(Resource):
         return {
             "message": "IP address blockade removed"
         }, 401
+
+
+class SharePassword(Resource):
+    @jwt_required()
+    def post(self):
+        """
+        Add shared password to another user.
+        """
+        # get data from form
+        request_json = request.get_json()
+        if request_json is None:
+            return {
+                "message": "No data send."
+            }, 401
+        schema = SharePasswordShema()    
+        try:
+            schema.load(request.get_json())
+        except ValidationError as error:
+            return {"message": error.messages}, 401        
+        password_id = request_json["id"]
+        login = request_json["login"]
+        # get shared password
+        password = Password.query.filter_by(
+            id=password_id
+        ).one_or_none()
+        # get user
+        user = User.query.filter_by(login=login).one_or_none()             
+        encrypted_password = password.password
+        old_key = generate_key(current_user.password_hash)
+        # decrypt password
+        decrypted_password = decrypt(encrypted_password, old_key)
+        # generate new key (sharing one, same for all users)
+        pepper = str(getenv("HASH_PEPPER"))
+        salt = str(getenv("SHARING_SALT"))
+        password_hash = calculate_sha512(salt + pepper)
+        new_key = generate_key(password_hash)
+        # encrypt password with new sharing key
+        encrypted = encrypt(decrypted_password.decode("utf-8"), new_key)
+        try:
+            new_password = Password(
+                user_id=user.id,
+                password=encrypted,
+                web_address=password.web_address,
+                description=password.description,
+                login=password.login,
+                owner_id=current_user.id
+            )
+            # save data to database
+            db.session.add(new_password)
+            db.session.commit()
+            return {
+                "message": "Password was succesfully shared."
+            }
+        except (AttributeError):
+            return {
+                "messsage": "User with given login doesn't exist"
+            }

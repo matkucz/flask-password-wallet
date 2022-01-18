@@ -18,6 +18,7 @@ class Password(db.Model):
     web_address = db.Column(db.String(256), nullable=False)
     description = db.Column(db.String(256), nullable=False)
     login = db.Column(db.String(30), nullable=False)
+    owner_id = db.Column(db.Integer, db.ForeignKey("user.id"))
 
 
 class UserLogin(db.Model):

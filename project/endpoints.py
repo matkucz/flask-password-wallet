@@ -5,7 +5,9 @@ from project.resources.wallet_jwt import (
     ChangePassword,
     CheckPassword,
     EncryptPassword,
-    Passwords
+    Passwords,
+    RemoveIpBlockade,
+    SharePassword
 )
 
 
@@ -19,6 +21,8 @@ def init_api():
     api.add_resource(Signup, '/signup')
     api.add_resource(ChangePassword, '/passwords/change')
     api.add_resource(CheckPassword, '/passwords/check')
-    api.add_resource(EncryptPassword, '/passwords/encrypt/<int:row_number>')
+    api.add_resource(SharePassword, '/passwords/share')
+    api.add_resource(EncryptPassword, '/passwords/encrypt/<int:password_id>')
     api.add_resource(Passwords, '/passwords')
+    api.add_resource(RemoveIpBlockade, '/blockade')
     api.init_app(app)    

@@ -9,6 +9,7 @@ In setup file you need two classes: DevConfig and TestConfig.
 ### .env file example
 ```
 HASH_PEPPER="<your_random_hash_paper>"
+SHARING_SALT="<your_random_sharing_salt>"
 FLASK_ENV=development
 FLASK_APP="project"
 ```

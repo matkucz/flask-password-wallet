@@ -123,7 +123,7 @@ class Signup(Resource):
             return {"message": error.messages}, 401
         login = request_json["login"]
         password = request_json["password"]
-        is_hash =  True if request_json["is_hash"] == "true" else False
+        is_hash = request_json["is_hash"]
         salt = generate_random_string(size=20)
         password_hash = ""
         if is_hash:

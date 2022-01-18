@@ -1,3 +1,4 @@
+from importlib.metadata import requires
 from flask import current_app
 from flask_marshmallow import Marshmallow
 from marshmallow import fields, validate
@@ -21,11 +22,8 @@ class LoginSchema(ma.Schema):
 class SignupSchema(ma.Schema):
     login = RequiredNonEmptyString
     password = RequiredNonEmptyString
-    is_hash = fields.Str(
-        required=True, 
-        validate=validate.OneOf(
-            ["true", "false"]
-        )
+    is_hash = fields.Bool(
+        required=True
     )
 
 
@@ -44,3 +42,10 @@ class ChangePasswordSchema(ma.Schema):
 
 class CheckPasswordSchema(ma.Schema):
     password = RequiredNonEmptyString
+
+
+class SharePasswordShema(ma.Schema):
+    id = fields.Int(
+        required=True
+    )
+    login = RequiredNonEmptyString
