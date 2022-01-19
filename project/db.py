@@ -27,6 +27,9 @@ def create_tables(app):
 @click.command('init-db')
 @with_appcontext
 def init_db_command():
+    '''
+    Create all tables.
+    '''
     create_tables(current_app)
     click.echo("Tables created.")
 
@@ -39,5 +42,8 @@ def drop_tables(app):
 @click.command('drop-db')
 @with_appcontext
 def drop_db_command():
+    '''
+    Drop all tables from database.
+    '''
     drop_tables(current_app)
     click.echo("Tables dropped.")

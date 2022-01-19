@@ -16,20 +16,9 @@ from project.hash import (
 )
 from project.models import User, UserLogin, IpLogin
 from project.schemas import LoginSchema, SignupSchema
-
-def validate(func):
-    @wraps(func)
-    def wrapper(**kwargs):
-        request_json = request.get_json()
-        print(**kwargs)
-        if  request_json is None:
-            return {
-                "message": "No data send."
-            }, 401
-    return wrapper        
+     
 
 class Login(Resource):
-    # @validates_schema(LoginSchema)
     def post(self):
         schema = LoginSchema()
         # can use schema.validate()
@@ -167,6 +156,8 @@ class Logout(Resource):
         }
 
 class Main(Resource):
+    @jwt_required()
     def get(self):
-        print(request.headers, request.access_route, request.remote_addr)
-        return "Twój adres ip to: " + request.remote_addr
+        return {
+            "message": "Token is valid"
+        }

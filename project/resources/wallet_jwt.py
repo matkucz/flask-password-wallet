@@ -29,7 +29,9 @@ class Passwords(Resource):
         """
         Get all user passwords.
         """
-        passwords = Password.query.filter_by(user_id=current_user.id).all()
+        passwords = Password.query.filter_by(
+                user_id=current_user.id
+            ).order_by(Password.id).all()
         result_list = [{
             "id": password.id, 
             "password": password.password, 
@@ -87,7 +89,56 @@ class Passwords(Resource):
             "message": "Password was succesfully added."
         }
 
-class CheckPassword(Resource):
+
+class EditOrDelPassword(Resource):
+    @jwt_required()
+    def put(self, id):
+        password = Password.query.filter_by(id=id).one_or_none()
+        json = request.get_json()
+        try:
+            if password.owner_id != current_user.id:
+                return {
+                    "message": "Only owner can change the password."
+                }, 401
+            new_password = json["password"]
+            # generate key
+            key = generate_key(current_user.password_hash)
+            # encrypt password with generated key
+            encrypted = encrypt(new_password, key)
+            password.login = json["login"]
+            password.password = encrypted
+            password.description = json["description"]
+            password.web_address = json["web_address"]
+            db.session.add(password)
+            db.session.commit()
+            return {
+                "message": "Password edited."
+            }
+        except AttributeError:
+            return {
+                "message": "Invalid data."
+            }, 401
+
+    @jwt_required()
+    def delete(self, id):
+        password = Password.query.filter_by(id=id).one_or_none()
+        try:
+            if password.owner_id != current_user.id:
+                return {
+                    "message": "Only owner can change the password."
+                }, 401
+            db.session.delete(password)
+            db.session.commit()
+            return {
+                "message": "Password deleted."
+            }
+        except AttributeError:
+            return {
+                "message": "Invalid data."
+            }, 401
+        
+
+class CheckMasterPassword(Resource):
     @jwt_required()
     def post(self):
         request_json = request.get_json()
@@ -114,9 +165,9 @@ class CheckPassword(Resource):
             "message": "Succesfull master password validation."
         }
 
-class ChangePassword(Resource):
+class ChangeMasterPassword(Resource):
     @jwt_required()
-    def patch(self):
+    def put(self):
         # get data from form
         request_json = request.get_json()
         schema = ChangePasswordSchema()
@@ -164,10 +215,12 @@ class ChangePassword(Resource):
         key = generate_key(password_hash)
         # decrypt passwords with old key and encrypt with new
         for password in passwords:
-            decrypted_password = decrypt(password.password, old_key)
-            encrypted = encrypt(decrypted_password.decode("utf-8"), key)
-            password.password = encrypted
-            db.session.add(password)
+            # check if user is owner of password
+            if password.owner_id == current_user.id:
+                decrypted_password = decrypt(password.password, old_key)
+                encrypted = encrypt(decrypted_password.decode("utf-8"), key)
+                password.password = encrypted
+                db.session.add(password)
 
 
         current_user.password_hash = password_hash
@@ -202,7 +255,7 @@ class EncryptPassword(Resource):
         except AttributeError as error:
             return {
                 "message": "Password doesn't exists."
-            }            
+            }, 401    
 
 
 class RemoveIpBlockade(Resource):
@@ -248,8 +301,18 @@ class SharePassword(Resource):
         password = Password.query.filter_by(
             id=password_id
         ).one_or_none()
+        # check if owner is sharing password
+        if password.owner_id != current_user.id:
+            return {
+                "message": "You have to be owner to share password."
+            }, 401
         # get user
         user = User.query.filter_by(login=login).one_or_none()             
+        # check if password isn't shared to owner
+        if user.id == current_user.id:
+            return {
+                "message": "You can't share password to yourself."
+            }, 401
         encrypted_password = password.password
         old_key = generate_key(current_user.password_hash)
         # decrypt password
@@ -279,4 +342,4 @@ class SharePassword(Resource):
         except (AttributeError):
             return {
                 "messsage": "User with given login doesn't exist"
-            }
+            }, 401
